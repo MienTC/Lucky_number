@@ -104,13 +104,6 @@ const LotteryPage = () => {
     setNumbers(new Array(digits).fill(0));
   }, []);
 
-  useEffect(() => {
-    if (hasResult) {
-      lotteryStorage.addResult(numbers);
-      setHistory(lotteryStorage.getHistory());
-    }
-  }, [hasResult, numbers]);
-
   const playSound = useCallback(
     async (type: "click" | "spin" | "win") => {
       if (!soundEnabled) return;
@@ -155,6 +148,10 @@ const LotteryPage = () => {
         setNumbers(finalNumbers);
         setIsSpinning(false);
         setHasResult(true);
+
+        // Save to history immediately
+        lotteryStorage.addResult(finalNumbers);
+        setHistory(lotteryStorage.getHistory());
 
         setTimeout(() => playSound("win"), 300);
       }
@@ -539,9 +536,11 @@ const LotteryPage = () => {
                     settingsStorage.updateSettings({ maxRange: val });
                     const digits = Math.max(1, Math.floor(Math.log10(val)) + 1);
                     setNumbers(new Array(digits).fill(0));
+                    setHasResult(false);
                   }
                 }}
                 className="w-full h-11 text-lg font-bold"
+                style={{ width: "100%" }}
               />
             </div>
 
@@ -562,6 +561,7 @@ const LotteryPage = () => {
                       settingsStorage.updateSettings({ maxRange: v });
                       const digits = Math.max(1, Math.floor(Math.log10(v)) + 1);
                       setNumbers(new Array(digits).fill(0));
+                      setHasResult(false);
                     }}
                     className={`
                       h-9 font-bold text-xs rounded-lg border-2
