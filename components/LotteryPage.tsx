@@ -1,43 +1,109 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
-import { Sparkles, Trophy, Star, Flame, Crown, Zap, History, Volume2, VolumeX, Sun, Moon } from 'lucide-react';
-import { audioManager } from '../lib/audio';
-import { lotteryStorage, settingsStorage, type LotteryResult } from '../lib/storage';
-import FireworksCanvas from './FireworksCanvas';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  ConfigProvider,
+  Button,
+  Modal,
+  Table,
+  Typography,
+  InputNumber,
+  Switch,
+  Space,
+  Tooltip,
+  Avatar,
+  Tag,
+  message,
+  theme as antdTheme,
+} from "antd";
+import {
+  SoundOutlined,
+  SoundFilled,
+  DeleteOutlined,
+  ReloadOutlined,
+  ThunderboltFilled,
+  TrophyFilled,
+  CrownFilled,
+  BulbOutlined,
+  BulbFilled,
+  SettingOutlined,
+} from "@ant-design/icons";
+import { audioManager } from "../lib/audio";
+import {
+  lotteryStorage,
+  settingsStorage,
+  type LotteryResult,
+} from "../lib/storage";
+import { Trash2 as IconTrash } from "lucide-react";
+import UAlertDialog from "~/components/ui/ualert-dialog";
 
-interface ConfettiItem {
-  id: number;
-  left: number;
-  color: string;
-  delay: number;
-  duration: number;
-  rotation: number;
-}
+const { Title, Text } = Typography;
+
+// Balanced Bento Tile component
+const BentoTile = ({
+  children,
+  className = "",
+  title,
+  extra,
+  noPadding = false,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  title?: React.ReactNode;
+  extra?: React.ReactNode;
+  noPadding?: boolean;
+}) => (
+  <div
+    className={`bg-white border-2 border-secondary rounded-2xl flex flex-col h-full overflow-hidden shadow-[3px_3px_0px_0px_#0f172a] ${className}`}
+  >
+    {(title || extra) && (
+      <div className="px-5 py-3 border-b-2 border-secondary flex justify-between items-center bg-ghost/50 shrink-0">
+        {typeof title === "string" ? (
+          <Text
+            strong
+            className="text-sm uppercase tracking-wider text-secondary"
+          >
+            {title}
+          </Text>
+        ) : (
+          title
+        )}
+        {extra}
+      </div>
+    )}
+    <div
+      className={`flex-1 overflow-hidden relative min-h-0 ${noPadding ? "" : "p-4"}`}
+    >
+      {children}
+    </div>
+  </div>
+);
 
 const LotteryPage = () => {
   const [numbers, setNumbers] = useState([0, 0, 0, 0, 0]);
   const [isSpinning, setIsSpinning] = useState(false);
   const [hasResult, setHasResult] = useState(false);
-  const [confetti, setConfetti] = useState<ConfettiItem[]>([]);
-  const [showFireworks, setShowFireworks] = useState(false);
   const [history, setHistory] = useState<LotteryResult[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-  const [currentState, setCurrentState] = useState<'idle' | 'spinning' | 'result'>('idle');
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [maxRange, setMaxRange] = useState(99999);
+  const [showSettings, setShowSettings] = useState(false);
 
-  // Initialize audio and load settings
   useEffect(() => {
-    audioManager.init();
     const settings = settingsStorage.getSettings();
     setSoundEnabled(settings.soundEnabled);
-    setTheme(settings.theme === 'light' ? 'light' : 'dark');
+    // Default to light theme
+    setTheme(settings.theme === "dark" ? "dark" : "light");
+    setMaxRange(settings.maxRange || 99999);
     setHistory(lotteryStorage.getHistory());
+
+    const digits = Math.max(
+      1,
+      Math.floor(Math.log10(settings.maxRange || 99999)) + 1,
+    );
+    setNumbers(new Array(digits).fill(0));
   }, []);
 
-  // Save result to history when lottery completes
   useEffect(() => {
     if (hasResult) {
       lotteryStorage.addResult(numbers);
@@ -45,522 +111,556 @@ const LotteryPage = () => {
     }
   }, [hasResult, numbers]);
 
-  // Tạo confetti khi có kết quả
-  useEffect(() => {
-    if (hasResult) {
-      setShowFireworks(true);
+  const playSound = useCallback(
+    async (type: "click" | "spin" | "win") => {
+      if (!soundEnabled) return;
 
-      // Tạo 100 particles confetti
-      const newConfetti: ConfettiItem[] = Array.from({ length: 100 }, (_, i) => ({
-        id: i,
-        left: Math.random() * 100,
-        color: ['#FFD700', '#FF1493', '#00F5FF', '#FF69B4', '#7B68EE', '#FFA500'][Math.floor(Math.random() * 6)],
-        delay: Math.random() * 0.5,
-        duration: 2 + Math.random() * 2,
-        rotation: Math.random() * 3600
-      }));
-      setConfetti(newConfetti);
+      // Ensure audio is ready on user interaction
+      await audioManager.ensureReady();
 
-      // Clear sau 4 giây
-      setTimeout(() => {
-        setConfetti([]);
-        setShowFireworks(false);
-      }, 4000);
-    }
-  }, [hasResult]);
+      switch (type) {
+        case "click":
+          audioManager.playClickSound();
+          break;
+        case "spin":
+          audioManager.playSpinSound();
+          break;
+        case "win":
+          audioManager.playWinSound();
+          break;
+      }
+    },
+    [soundEnabled],
+  );
 
-  // Hàm quay số
-  const spinLottery = () => {
-    if (soundEnabled) {
-      audioManager.playClickSound();
-      setTimeout(() => audioManager.playSpinSound(), 200);
-    }
+  const spinLottery = async () => {
+    await playSound("click");
+    setTimeout(() => playSound("spin"), 100);
 
     setIsSpinning(true);
     setHasResult(false);
-    setConfetti([]);
 
+    const digits = Math.max(1, Math.floor(Math.log10(maxRange)) + 1);
     let counter = 0;
     const interval = setInterval(() => {
-      // Random số liên tục
-      setNumbers(prev => prev.map(() => Math.floor(Math.random() * 10)));
+      setNumbers((prev) => prev.map(() => Math.floor(Math.random() * 10)));
       counter++;
 
-      // Sau 40 lần thì dừng
-      if (counter > 40) {
+      if (counter > 25) {
         clearInterval(interval);
-        // Tạo số cuối cùng
-        const finalNumbers = Array.from({ length: 5 }, () =>
-          Math.floor(Math.random() * 10)
-        );
+        const winner = Math.floor(Math.random() * maxRange) + 1;
+        const winnerStr = winner.toString().padStart(digits, "0");
+        const finalNumbers = winnerStr.split("").map(Number);
+
         setNumbers(finalNumbers);
         setIsSpinning(false);
         setHasResult(true);
 
-        // Play win sound
-        if (soundEnabled) {
-          setTimeout(() => audioManager.playWinSound(), 500);
-        }
+        setTimeout(() => playSound("win"), 300);
       }
-    }, 150); // Mỗi 150ms đổi số 1 lần
+    }, 200);
   };
 
-  // Reset về ban đầu
-  const reset = () => {
-    if (soundEnabled) {
-      audioManager.playClickSound();
-    }
-    setNumbers([0, 0, 0, 0, 0]);
+  const reset = async () => {
+    await playSound("click");
+    const digits = Math.max(1, Math.floor(Math.log10(maxRange)) + 1);
+    setNumbers(new Array(digits).fill(0));
     setHasResult(false);
-    setConfetti([]);
   };
 
-  // Toggle sound
-  const toggleSound = () => {
-    const newSoundEnabled = !soundEnabled;
-    setSoundEnabled(newSoundEnabled);
-    settingsStorage.updateSettings({ soundEnabled: newSoundEnabled });
+  const deleteRecord = (id: string) => {
+    const newHistory = history.filter((item) => item.id !== id);
+    setHistory(newHistory);
+    // Overwrite storage with updated history
+    localStorage.setItem("lottery_history", JSON.stringify(newHistory));
+    message.success("Đã xóa kết quả");
   };
 
-  // Toggle theme
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    settingsStorage.updateSettings({ theme: newTheme });
-  };
-
-  // Clear history
-  const clearHistory = () => {
-    lotteryStorage.clearHistory();
-    setHistory([]);
-  };
-
-  return (
-    <>
-      {/* Confetti explosion */}
-      {confetti.map(conf => (
-        <div
-          key={conf.id}
-          className="absolute top-0 w-2.5 h-2.5 rounded-sm pointer-events-none"
-          style={{
-            left: `${conf.left}%`,
-            backgroundColor: conf.color,
-            transform: `rotate(${conf.rotation}deg)`,
-            animation: `confetti ${conf.duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${conf.delay}s forwards`,
-            boxShadow: `0 0 10px ${conf.color}`
+  const columns = [
+    {
+      title: "#",
+      key: "index",
+      render: (_: unknown, __: unknown, index: number) => (
+        <span className="text-secondary/40 font-mono text-xl">
+          {history.length - index}
+        </span>
+      ),
+    },
+    {
+      title: "Kết quả",
+      dataIndex: "numbers",
+      key: "numbers",
+      render: (nums: number[]) => (
+        <Space size={3} wrap>
+          {nums.map((n, i) => (
+            <Tag
+              key={i}
+              className="font-bold border-2 border-primary/30 m-0 bg-primary/10 text-primary text-xl px-4 py-1 rounded-lg"
+            >
+              {n}
+            </Tag>
+          ))}
+        </Space>
+      ),
+    },
+    {
+      title: "Thời gian",
+      dataIndex: "date",
+      key: "date",
+      render: (date: string) => (
+        <Text className="text-sm text-secondary/50 font-mono">
+          {date.split(",")[1]?.trim() || date}
+        </Text>
+      ),
+    },
+    {
+      title: "",
+      key: "action",
+      width: 40,
+      render: (_: any, record: LotteryResult) => (
+        <UAlertDialog
+          iconChildren={
+            <div className="text-red-500 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100">
+              <IconTrash size={16} />
+            </div>
+          }
+          onDelete={() => {
+            deleteRecord(record.id);
           }}
         />
-      ))}
+      ),
+    },
+  ];
 
-      {/* Fireworks effect */}
-      {showFireworks && (
-        <>
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute top-1/4 left-1/2 w-2 h-2 rounded-full"
-              style={{
-                background: ['#FFD700', '#FF1493', '#00F5FF'][i % 3],
-                animation: `firework 1s ease-out ${i * 0.2}s`,
-                animationFillMode: 'forwards'
-              }}
-            />
-          ))}
-        </>
-      )}
+  const isDark = theme === "dark";
 
-      <style jsx>{`
-        @keyframes confetti {
-          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-        }
-        @keyframes firework {
-          0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
-          100% { transform: translate(-50%, -50%) scale(30); opacity: 0; }
-        }
-        @keyframes shimmer {
-          0% { background-position: -1000px 0; }
-          100% { background-position: 1000px 0; }
-        }
-        @keyframes pulse-glow {
-          0%, 100% {
-            box-shadow: 0 0 20px rgba(255,215,0,0.4),
-                        0 0 40px rgba(255,105,180,0.3),
-                        0 0 60px rgba(138,43,226,0.2),
-                        inset 0 0 20px rgba(255,255,255,0.1);
-          }
-          50% {
-            box-shadow: 0 0 40px rgba(255,215,0,0.8),
-                        0 0 80px rgba(255,105,180,0.6),
-                        0 0 120px rgba(138,43,226,0.4),
-                        inset 0 0 30px rgba(255,255,255,0.2);
-          }
-        }
-        @keyframes bounce-in {
-          0% { transform: scale(0) rotate(-180deg); opacity: 0; }
-          50% { transform: scale(1.2) rotate(0deg); }
-          100% { transform: scale(1) rotate(0deg); opacity: 1; }
-        }
-        @keyframes slide-up {
-          from { transform: translateY(50px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes rotate-3d {
-          0% { transform: rotateY(0deg); }
-          100% { transform: rotateY(360deg); }
-        }
-      `}</style>
-
-      <div className={`container mx-auto px-4 py-4 h-screen flex flex-col transition-all duration-500 overflow-hidden ${
-        theme === 'light'
-          ? 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
-          : 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900'
-      }`}>
-        {/* Header với Logo và Controls */}
-        <div
-          className="flex items-center justify-between mb-4 "
-          style={{ animation: 'slide-up 0.8s ease-out' }}
+  return (
+    <ConfigProvider
+      theme={{
+        algorithm: isDark
+          ? antdTheme.darkAlgorithm
+          : antdTheme.defaultAlgorithm,
+        token: {
+          colorPrimary: "#22C55E",
+          borderRadius: 12,
+          fontFamily: "'Inter', system-ui, sans-serif",
+          colorBgContainer: isDark ? "#1E293B" : "#FFFFFF",
+          colorBorder: "#0F172A",
+        },
+        components: {
+          Button: {
+            controlHeightLG: 48,
+            borderRadiusLG: 12,
+            fontWeight: 700,
+          },
+          Table: {
+            headerBg: "transparent",
+            headerColor: "#64748B",
+            headerSplitColor: "transparent",
+            cellPaddingBlockSM: 10,
+            cellPaddingInlineSM: 8,
+          },
+          Modal: {
+            borderRadiusLG: 20,
+          },
+        },
+      }}
+    >
+      <div
+        className={`flex flex-col h-full w-full max-w-[1440px] mx-auto px-4 py-3 gap-3 ${isDark ? "bg-slate-900" : "bg-ghost"}`}
+      >
+        {/* Header */}
+        <header
+          className={`${isDark ? "bg-slate-800" : "bg-white"} border-2 border-secondary rounded-2xl shadow-[3px_3px_0px_0px_#0f172a] flex items-center justify-between px-5 h-14 shrink-0`}
         >
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500 via-pink-500 to-purple-500 rounded-full blur-lg opacity-75 group-hover:opacity-100 transition-all duration-300"></div>
-              <Image
-                src="/logo.jpg"
-                alt="Logo TNTT"
-                width={64}
-                height={64}
-                className={`relative w-16 h-16 rounded-full object-cover border-2 shadow-2xl transform group-hover:scale-110 transition-all duration-300 ${
-                  theme === 'light' ? 'border-black' : 'border-white'
-                }`}
+          <div className="flex items-center gap-3">
+            <Avatar
+              src="/logo.jpg"
+              size={38}
+              className="border-2 border-secondary shadow-[2px_2px_0px_0px_#0f172a] shrink-0"
+            />
+            <div className="hidden sm:block">
+              <Title
+                level={5}
+                className={`!m-0 !mb-0 font-black tracking-tight ${isDark ? "text-white" : "text-secondary"} !text-base`}
+              >
+                TNTT PHÊRÔ NÉRON BẮC
+              </Title>
+            </div>
+          </div>
+
+          <div className="flex gap-3 items-center shrink-0">
+            {/* <Tooltip title={isDark ? "Chế độ sáng" : "Chế độ tối"}>
+              <Button
+                type="text"
+                className={`flex items-center justify-center w-9 h-9 rounded-xl border-2 border-secondary ${isDark ? 'bg-slate-700 text-white' : 'bg-white'}`}
+                icon={isDark ? <BulbFilled className="text-amber-400" /> : <BulbOutlined />}
+                onClick={() => {
+                  const newTheme = isDark ? 'light' : 'dark';
+                  setTheme(newTheme);
+                  settingsStorage.updateSettings({ theme: newTheme });
+                }}
+              />
+            </Tooltip> */}
+
+            <div
+              className={`${isDark ? "bg-slate-700" : "bg-ghost"} border-2 border-secondary rounded-xl px-2 h-9 hidden sm:flex items-center gap-2`}
+            >
+              <SoundOutlined
+                className={`text-xs ${soundEnabled ? "text-secondary/30" : "text-secondary"}`}
+              />
+              <Switch
+                checked={soundEnabled}
+                onChange={(val) => {
+                  setSoundEnabled(val);
+                  settingsStorage.updateSettings({ soundEnabled: val });
+                }}
+                size="small"
+                className={soundEnabled ? "bg-primary" : ""}
+              />
+              <SoundFilled
+                className={`text-xs ${soundEnabled ? "text-primary" : "text-secondary/30"}`}
               />
             </div>
-            <div>
-              <h2 className={`text-2xl font-black bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent ${
-                theme === 'light' ? 'drop-shadow-lg' : ''
-              }`}>
-                Đoàn TNTT Phêrô NéRon Bắc GX Phú Cát
-              </h2>
-            </div>
+
+            <Button
+              icon={<SettingOutlined />}
+              onClick={() => setShowSettings(true)}
+              className={`h-9 px-4 rounded-xl border-2 border-secondary font-bold text-xs tracking-wide shadow-[2px_2px_0px_0px_#0f172a] ${isDark ? "bg-slate-700 text-white" : "bg-white text-secondary"}`}
+            >
+              CÀI ĐẶT
+            </Button>
           </div>
+        </header>
 
-          {/* Control buttons */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={toggleSound}
-              className={`p-3 rounded-full transition-all duration-300 backdrop-blur-sm ${
-                theme === 'light'
-                  ? 'bg-black/10 hover:bg-black/20'
-                  : 'bg-white/10 hover:bg-white/20'
-              }`}
-              title={soundEnabled ? "Tắt âm thanh" : "Bật âm thanh"}
+        {/* Main Content Grid */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-3 min-h-0">
+          {/* Main Lottery Board - Takes 2 columns on large screens */}
+          <div className="lg:col-span-2 h-full">
+            <BentoTile
+              className={`${isDark ? "bg-slate-800 border-slate-600" : ""}`}
             >
-              {soundEnabled ? (
-                <Volume2 className={theme === 'light' ? 'w-6 h-6 text-black' : 'w-6 h-6 text-white'} />
-              ) : (
-                <VolumeX className={theme === 'light' ? 'w-6 h-6 text-black/50' : 'w-6 h-6 text-white/50'} />
-              )}
-            </button>
+              {/* Top accent bar */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary to-emerald-400" />
 
-            <button
-              onClick={toggleTheme}
-              className={`p-3 rounded-full transition-all duration-300 backdrop-blur-sm ${
-                theme === 'light'
-                  ? 'bg-black/10 hover:bg-black/20'
-                  : 'bg-white/10 hover:bg-white/20'
-              }`}
-              title={theme === 'light' ? "Chuyển sang chế độ tối" : "Chuyển sang chế độ sáng"}
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-6 h-6 text-white" />
-              ) : (
-                <Moon className="w-6 h-6 text-black" />
-              )}
-            </button>
-
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className={`p-3 rounded-full transition-all duration-300 backdrop-blur-sm ${
-                theme === 'light'
-                  ? 'bg-black/10 hover:bg-black/20'
-                  : 'bg-white/10 hover:bg-white/20'
-              }`}
-              title="Lịch sử quay số"
-            >
-              <History className={theme === 'light' ? 'w-6 h-6 text-black' : 'w-6 h-6 text-white'} />
-            </button>
-          </div>
-        </div>
-
-        {/* Nội dung chính */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-full max-w-5xl">
-            {showHistory ? (
-              /* History Panel */
-              <div
-                className="relative backdrop-blur-2xl bg-gradient-to-br from-white/10 via-white/5 to-transparent rounded-[2.5rem] p-8 md:p-12 border border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]"
-                style={{ animation: 'bounce-in 1s ease-out' }}
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-3xl font-black bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-                    📚 Lịch sử quay số
-                  </h3>
-                  <button
-                    onClick={() => setShowHistory(false)}
-                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-300 text-white font-semibold"
-                  >
-                    Quay lại
-                  </button>
+              <div className="flex flex-col items-center justify-center h-full py-2">
+                {/* Badge */}
+                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-full px-4 py-1.5">
+                  <span className="text-emerald-600 text-[11px] font-bold tracking-[0.12em] uppercase flex items-center gap-2">
+                    <CrownFilled className="text-amber-500" /> Vòng Quay May Mắn
+                  </span>
                 </div>
 
-                {history.length === 0 ? (
-                  <div className="text-center py-12">
-                    <History className="w-16 h-16 text-white/30 mx-auto mb-4" />
-                    <p className="text-white/70 text-lg">Chưa có lịch sử quay số nào</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid gap-4 mb-6 max-h-96 overflow-y-auto">
-                      {history.map((result, index) => (
-                        <div
-                          key={result.id}
-                          className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300"
-                        >
-                          <div className="flex items-center gap-4">
-                            <span className="text-white/70 font-mono">#{history.length - index}</span>
-                            <div className="flex gap-2">
-                              {result.numbers.map((num, i) => (
-                                <span
-                                  key={i}
-                                  className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm"
-                                >
-                                  {num}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                          <span className="text-white/50 text-sm">{result.date}</span>
-                        </div>
-                      ))}
-                    </div>
+                {/* Title */}
+                <h1
+                  className={`text-6xl sm:text-7xl md:text-6xl lg:text-7xl font-black mb-6 tracking-tighter ${isDark ? "text-white" : "text-[#E5BA41]"}`}
+                >
+                  LUCKY NUMBER
+                </h1>
 
-                    <div className="flex justify-between items-center">
-                      <p className="text-white/70">
-                        Tổng số lần quay: <span className="font-bold text-yellow-400">{history.length}</span>
-                      </p>
-                      <button
-                        onClick={clearHistory}
-                        className="px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 hover:text-red-200 transition-all duration-300 font-semibold"
-                      >
-                        Xóa lịch sử
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ) : (
-              /* Main Lottery Interface */
-              <div
-                className="relative backdrop-blur-2xl bg-gradient-to-br from-white/10 via-white/5 to-transparent rounded-[2rem] p-4 md:p-6 border border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] h-full flex flex-col"
-                style={{ animation: 'bounce-in 1s ease-out' }}
-              >
-                {/* Crown trang trí */}
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <Crown className="w-10 h-10 text-yellow-400 drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]" />
-                </div>
-
-                {/* Góc phát sáng */}
-                <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-yellow-400/20 to-transparent rounded-tl-[2rem] blur-xl"></div>
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-pink-400/20 to-transparent rounded-tr-[2rem] blur-xl"></div>
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-purple-400/20 to-transparent rounded-bl-[2rem] blur-xl"></div>
-                <div className="absolute bottom-0 right-0 w-24 h-24 bg-gradient-to-tl from-blue-400/20 to-transparent rounded-br-[2rem] blur-xl"></div>
-
-                {/* Tiêu đề */}
-                <div className="text-center mb-4 flex-shrink-0">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Star className="w-6 h-6 text-yellow-400 animate-spin" style={{ animationDuration: '4s' }} />
-                    <h1
-                      className="text-4xl md:text-6xl font-black bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 bg-clip-text text-transparent"
-                      style={{
-                        backgroundSize: '200% auto',
-                        animation: 'shimmer 3s linear infinite',
-                        filter: 'drop-shadow(0 0 20px rgba(255,215,0,0.3))'
-                      }}
-                    >
-                      VÒNG QUAY
-                    </h1>
-                    <Flame className="w-6 h-6 text-orange-400 animate-bounce" />
-                  </div>
-                  <h2 className="text-2xl md:text-4xl font-black bg-gradient-to-r from-pink-400 to-purple-500 bg-clip-text text-transparent mb-2">
-                    MAY MẮN
-                  </h2>
-                  <div className="flex items-center justify-center gap-1">
-                    <Sparkles className="w-4 h-4 text-yellow-400" />
-                    <p className={`${theme === 'light' ? 'text-black/90' : 'text-white/90'} text-sm font-semibold`}>Khám phá vận may của bạn ngay bây giờ!</p>
-                    <Sparkles className="w-4 h-4 text-pink-400" />
-                  </div>
-                </div>
-
-                {/* Hiển thị số */}
-                <div className="flex-1 flex flex-col justify-center mb-4">
-                  <div className="flex flex-wrap justify-center gap-2 md:gap-4 mb-4 perspective-1000">
-                    {numbers.map((num, index) => (
-                      <div
-                        key={index}
-                        className="relative transform-gpu"
-                        style={{
-                          animation: isSpinning ? `rotate-3d 0.5s linear infinite` : 'none',
-                          animationDelay: `${index * 0.1}s`
-                        }}
-                      >
-                        {/* Vòng sáng ngoài */}
-                        <div
-                          className={`absolute inset-0 rounded-2xl ${hasResult ? 'animate-spin' : ''}`}
-                          style={{
-                            background: 'conic-gradient(from 0deg, #FFD700, #FF1493, #00F5FF, #FF69B4, #FFD700)',
-                            filter: 'blur(8px)',
-                            opacity: hasResult ? 0.8 : 0.5,
-                            animationDuration: '3s'
-                          }}
-                        ></div>
-
-                        {/* Thẻ số */}
-                        <div
-                          className="relative w-16 h-20 md:w-24 md:h-28 rounded-2xl flex items-center justify-center overflow-hidden transform transition-all duration-500"
-                          style={{
-                            background: isSpinning
-                              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                              : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                            animation: hasResult ? 'pulse-glow 2s ease-in-out infinite' : 'none',
-                            transform: `scale(${isSpinning ? 1.1 : hasResult ? 1.05 : 1})`
-                          }}
-                        >
-                          {/* Hiệu ứng shimmer */}
-                          <div
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                            style={{
-                              animation: 'shimmer 2s linear infinite',
-                              backgroundSize: '200% 100%'
-                            }}
-                          ></div>
-
-                          <span
-                            className="relative text-4xl md:text-6xl font-black text-white"
-                            style={{
-                              textShadow: '0 0 15px rgba(255,255,255,0.5), 2px 2px 4px rgba(0,0,0,0.5)'
-                            }}
-                          >
-                            {num}
-                          </span>
-
-                          {/* Icons góc */}
-                          {hasResult && (
-                            <>
-                              <Trophy className="absolute -top-1 -right-1 w-5 h-5 text-yellow-300 animate-bounce" />
-                              <Zap className="absolute -bottom-1 -left-1 w-5 h-5 text-cyan-300 animate-pulse" />
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Banner kết quả */}
-                  {hasResult && (
+                {/* Number Cards */}
+                <div className="flex gap-4 sm:gap-6 mb-10 flex-wrap justify-center w-full px-8">
+                  {numbers.map((num, idx) => (
                     <div
-                      className="relative overflow-hidden rounded-2xl p-4 mb-4"
-                      style={{
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
-                        animation: 'bounce-in 0.6s ease-out',
-                        boxShadow: '0 0 40px rgba(102, 126, 234, 0.6)'
-                      }}
+                      key={idx}
+                      className={`
+                        flex-1 min-w-[140px] max-w-[280px] aspect-3/4
+                        ${isDark ? "bg-slate-700" : "bg-white"} 
+                        border-4 rounded-3xl md:rounded-[3rem] 
+                        flex items-center justify-center 
+                        text-8xl sm:text-9xl md:text-[10rem] font-black
+                        transition-all duration-200
+                        mb-5
+                        ${
+                          isSpinning
+                            ? "animate-card-spin border-secondary scale-105"
+                            : hasResult
+                              ? "border-primary text-primary shadow-[15px_15px_0px_0px_#22C55E]"
+                              : `border-secondary shadow-[15px_15px_0px_0px_#0f172a] ${isDark ? "text-white" : "text-secondary"}`
+                        }
+                      `}
                     >
-                      <div className="absolute inset-0 bg-white/10 animate-pulse"></div>
-                      <div className="relative text-center">
-                        <Trophy className="w-10 h-10 text-yellow-300 mx-auto mb-2 animate-bounce drop-shadow-[0_0_15px_rgba(255,215,0,0.8)]" />
-                        <h3 className="text-2xl md:text-4xl font-black text-white mb-2 drop-shadow-lg">
-                          🎊 CHÚC MỪNG! 🎊
-                        </h3>
-                        <p className="text-lg font-bold text-white/90 mb-1">
-                          Số may mắn của bạn:
-                        </p>
-                        <p className="text-3xl md:text-5xl font-black text-yellow-300 drop-shadow-[0_0_15px_rgba(255,215,0,0.9)]">
-                          {numbers.join("")}
-                        </p>
-                      </div>
+                      {num}
                     </div>
-                  )}
+                  ))}
                 </div>
 
-                {/* Nút bấm */}
-                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center flex-shrink-0">
-                  <button
+                {/* Action Buttons */}
+                <div className="flex gap-8">
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<ThunderboltFilled />}
                     onClick={spinLottery}
                     disabled={isSpinning}
-                    className={`group relative px-8 py-4 rounded-xl font-black text-lg overflow-hidden transition-all duration-300 ${
-                      isSpinning
-                        ? 'bg-gray-600 cursor-not-allowed scale-95'
-                        : 'hover:scale-110 active:scale-95'
-                    }`}
-                    style={{
-                      background: isSpinning
-                        ? undefined
-                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
-                      boxShadow: isSpinning ? undefined : '0 8px 30px rgba(102, 126, 234, 0.5)'
-                    }}
+                    className="h-20 md:h-24 px-12 md:px-20 text-3xl md:text-4xl font-black rounded-4xl border-4 border-emerald-700 shadow-[10px_10px_0px_0px_#166534] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all"
                   >
-                    {!isSpinning && (
-                      <>
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" style={{ backgroundSize: '200% 100%', animation: 'shimmer 2s linear infinite' }}></div>
-                        <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
-                      </>
-                    )}
-                    <span className="relative z-10 flex items-center gap-2 text-white drop-shadow-lg">
-                      {isSpinning ? (
-                        <>
-                          <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
-                          ĐANG QUAY...
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-6 h-6 animate-pulse" />
-                          QUAY NGAY
-                          <Zap className="w-6 h-6 animate-pulse" />
-                        </>
-                      )}
-                    </span>
-                  </button>
+                    {isSpinning ? "ĐANG QUAY..." : "QUAY NGAY"}
+                  </Button>
 
-                  {hasResult && (
-                    <button
+                  {hasResult && !isSpinning && (
+                    <Button
+                      size="large"
+                      icon={<ReloadOutlined />}
                       onClick={reset}
-                      className="group relative px-8 py-4 rounded-xl font-black text-lg bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white transition-all duration-300 hover:scale-110 active:scale-95 shadow-xl overflow-hidden"
+                      className={`h-20 md:h-24 px-10 md:px-14 text-3xl md:text-4xl font-black rounded-[2rem] border-4 border-secondary shadow-[10px_10px_0px_0px_#0f172a] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all ${isDark ? "bg-slate-700 text-white" : "bg-white text-secondary"}`}
                     >
-                      <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      <span className="relative z-10 flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        THỬ LẠI
-                      </span>
-                    </button>
+                      THỬ LẠI
+                    </Button>
                   )}
                 </div>
 
-                {/* Footer */}
-                <div className="mt-4 text-center flex-shrink-0">
-                  <div className={`flex items-center justify-center gap-1 ${theme === 'light' ? 'text-black/70' : 'text-white/70'} text-sm font-semibold`}>
-                    <Star className="w-4 h-4 text-yellow-400" />
-                    <p>Chúc bạn luôn gặp nhiều may mắn và niềm vui</p>
-                    <Star className="w-4 h-4 text-pink-400" />
+                {/* Win Message */}
+                {hasResult && !isSpinning && (
+                  <div className="mt-10 animate-fade-in-up text-center">
+                    <div className="flex items-center justify-center gap-6 mb-4">
+                      <TrophyFilled className="text-amber-500 text-6xl" />
+                      <span className="text-primary font-black text-6xl tracking-tight">
+                        XIN CHÚC MỪNG!
+                      </span>
+                      <TrophyFilled className="text-amber-500 text-6xl" />
+                    </div>
+                    <p
+                      className={`text-5xl ${isDark ? "text-slate-400" : "text-secondary/60"}`}
+                    >
+                      Kết quả:{" "}
+                      <span
+                        className={`font-black ${isDark ? "text-white" : "text-[#E5BA41]"}`}
+                      >
+                        {numbers.join("")}
+                      </span>
+                    </p>
                   </div>
-                </div>
+                )}
               </div>
+            </BentoTile>
+          </div>
 
-            )}
+          {/* History Panel */}
+          <div className="h-full hidden lg:block">
+            <BentoTile
+              title={
+                <span
+                  className={`text-2xl font-black uppercase tracking-widest ${isDark ? "text-white" : "text-secondary"}`}
+                >
+                  Lịch sử quay số
+                </span>
+              }
+              className={isDark ? "bg-slate-800 border-slate-600" : ""}
+              noPadding
+              extra={
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                  className="font-semibold text-[10px] h-6 flex items-center px-2"
+                  size="small"
+                  disabled={history.length === 0}
+                  onClick={() => {
+                    Modal.confirm({
+                      title: "Xóa tất cả lịch sử?",
+                      content: "Toàn bộ lịch sử sẽ bị xóa vĩnh viễn.",
+                      okText: "Xóa hết",
+                      okType: "danger",
+                      cancelText: "Hủy",
+                      centered: true,
+                      onOk() {
+                        lotteryStorage.clearHistory();
+                        setHistory([]);
+                        message.success("Đã xóa tất cả lịch sử");
+                      },
+                    });
+                  }}
+                >
+                  Xóa hết
+                </Button>
+              }
+            >
+              <div className="p-5">
+                <Table
+                  dataSource={history}
+                  columns={columns}
+                  pagination={{
+                    pageSize: 8,
+                    size: "small",
+                    showSizeChanger: false,
+                    className: "px-3",
+                  }}
+                  rowKey="id"
+                  className="h-full lottery-table"
+                  onRow={() => ({
+                    className: "group",
+                  })}
+                  size="small"
+                  locale={{
+                    emptyText: (
+                      <span className="text-secondary/40 text-xs">
+                        Chưa có kết quả
+                      </span>
+                    ),
+                  }}
+                />
+              </div>
+            </BentoTile>
           </div>
         </div>
+
+        {/* Settings Modal */}
+        <Modal
+          title={
+            <div className="flex items-center gap-2">
+              <SettingOutlined className="text-primary" />
+              <span className="font-bold text-lg">Cài đặt</span>
+            </div>
+          }
+          open={showSettings}
+          onCancel={() => setShowSettings(false)}
+          footer={null}
+          centered
+          width={380}
+          className="settings-modal"
+        >
+          <div className="flex flex-col gap-5 py-3">
+            {/* Max Range Setting */}
+            <div className="flex flex-col gap-2">
+              <Text
+                strong
+                className="text-secondary/60 text-xs uppercase tracking-wider"
+              >
+                Giới hạn số tối đa
+              </Text>
+              <InputNumber
+                min={1}
+                max={999999}
+                value={maxRange}
+                onChange={(val) => {
+                  if (val) {
+                    setMaxRange(val);
+                    settingsStorage.updateSettings({ maxRange: val });
+                    const digits = Math.max(1, Math.floor(Math.log10(val)) + 1);
+                    setNumbers(new Array(digits).fill(0));
+                  }
+                }}
+                className="w-full h-11 text-lg font-bold"
+              />
+            </div>
+
+            {/* Quick Select */}
+            <div className="flex flex-col gap-2">
+              <Text
+                strong
+                className="text-secondary/60 text-xs uppercase tracking-wider"
+              >
+                Chọn nhanh
+              </Text>
+              <div className="grid grid-cols-4 gap-2">
+                {[100, 500, 1000, 5000].map((v) => (
+                  <Button
+                    key={v}
+                    onClick={() => {
+                      setMaxRange(v);
+                      settingsStorage.updateSettings({ maxRange: v });
+                      const digits = Math.max(1, Math.floor(Math.log10(v)) + 1);
+                      setNumbers(new Array(digits).fill(0));
+                    }}
+                    className={`
+                      h-9 font-bold text-xs rounded-lg border-2
+                      ${
+                        maxRange === v
+                          ? "bg-primary text-white border-primary shadow-[2px_2px_0px_0px_#166534]"
+                          : "bg-white text-secondary border-secondary/30 hover:border-secondary"
+                      }
+                    `}
+                  >
+                    {v.toLocaleString()}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sound Toggle (Mobile) */}
+            <div className="flex items-center justify-between p-3 bg-ghost rounded-xl border border-secondary/10">
+              <div className="flex items-center gap-2">
+                <SoundFilled
+                  className={
+                    soundEnabled ? "text-primary" : "text-secondary/30"
+                  }
+                />
+                <Text className="font-medium">Âm thanh</Text>
+              </div>
+              <Switch
+                checked={soundEnabled}
+                onChange={(val) => {
+                  setSoundEnabled(val);
+                  settingsStorage.updateSettings({ soundEnabled: val });
+                }}
+                className={soundEnabled ? "bg-primary" : ""}
+              />
+            </div>
+
+            {/* Done Button */}
+            <Button
+              type="primary"
+              onClick={() => setShowSettings(false)}
+              className="h-11 font-bold text-sm rounded-xl border-2 border-emerald-700 shadow-[3px_3px_0px_0px_#166534] active:shadow-none active:translate-x-0.5 active:translate-y-0.5"
+              block
+            >
+              Hoàn tất
+            </Button>
+          </div>
+        </Modal>
+
+        {/* Custom Styles */}
+        <style jsx global>{`
+          .lottery-table .ant-table {
+            background: transparent !important;
+          }
+          .lottery-table .ant-table-thead > tr > th {
+            font-size: 16px;
+            font-weight: 900;
+            padding: 20px 12px !important;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 3px solid rgba(15, 23, 42, 0.1) !important;
+          }
+          .lottery-table .ant-table-tbody > tr > td {
+            padding: 16px 12px !important;
+            border-bottom: 2px solid rgba(15, 23, 42, 0.05) !important;
+            font-size: 20px;
+            font-weight: 700;
+          }
+          .lottery-table .ant-pagination {
+            margin: 12px 0 8px !important;
+            justify-content: center !important;
+          }
+          .lottery-table .ant-pagination-item {
+            border-radius: 6px !important;
+            border: 1px solid #e2e8f0 !important;
+          }
+          .lottery-table .ant-pagination-item-active {
+            background: #22c55e !important;
+            border-color: #22c55e !important;
+          }
+          .lottery-table .ant-pagination-item-active a {
+            color: white !important;
+          }
+
+          .settings-modal .ant-modal-content {
+            border: 2px solid #0f172a !important;
+            border-radius: 20px !important;
+            box-shadow: 4px 4px 0px 0px #0f172a !important;
+            padding: 20px 24px !important;
+          }
+          .settings-modal .ant-modal-header {
+            margin-bottom: 16px;
+          }
+          .settings-modal .ant-modal-close {
+            top: 18px;
+            right: 20px;
+          }
+        `}</style>
       </div>
-    </>
+    </ConfigProvider>
   );
 };
 

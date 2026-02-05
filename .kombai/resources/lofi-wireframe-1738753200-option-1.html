@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: 'Comic Sans MS', cursive; background: #fff; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; border: 2px solid #000; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+        .main-content { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .lottery-area { text-align: center; border: 2px dashed #666; padding: 40px; }
+        .cards-container { display: flex; justify-content: center; gap: 10px; margin: 30px 0; }
+        .card { width: 80px; height: 120px; border: 2px solid #000; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: bold; }
+        .history-area { border: 2px solid #000; padding: 15px; height: 500px; overflow-y: auto; }
+        .btn { padding: 10px 20px; border: 2px solid #000; background: #eee; cursor: pointer; font-family: inherit; font-weight: bold; }
+        .btn-primary { background: #ccc; font-size: 20px; padding: 15px 40px; }
+        .tag { border: 1px solid #000; padding: 2px 5px; font-size: 12px; margin-right: 5px; }
+        .badge-reuse { position: absolute; top: -10px; right: -10px; background: #4CAF50; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-family: Arial; font-weight: bold; z-index: 10; }
+        .badge-new { position: absolute; top: -10px; right: -10px; background: #FF9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-family: Arial; font-weight: bold; z-index: 10; }
+        .component-wrapper { position: relative; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Redesigned Lottery Experience</h1>
+        <p>Balanced approach: Optimizing hierarchy and adding pagination/filtering to the history table.</p>
+        
+        <header>
+            <div class="component-wrapper">
+                <span class="badge-reuse" title="components/MainLayout.tsx">[REUSE] Header</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 40px; height: 40px; border: 2px solid #000; border-radius: 50%;">[Logo]</div>
+                    <span>TNTT Phêrô NéRon Bắc</span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn">Theme</button>
+                <button class="btn">Sound</button>
+                <button class="btn">Settings</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="lottery-area">
+                <div class="component-wrapper">
+                    <span class="badge-new" title="New Typography Component">[NEW] HeroText</span>
+                    <p style="letter-spacing: 5px;">VÒNG QUAY MAY MẮN</p>
+                    <h2 style="font-size: 60px; margin: 0;">LUCKY NUMBER</h2>
+                </div>
+
+                <div class="cards-container">
+                    <div class="card">0</div>
+                    <div class="card">0</div>
+                    <div class="card">0</div>
+                    <div class="card">0</div>
+                    <div class="card">0</div>
+                </div>
+
+                <div class="component-wrapper">
+                    <span class="badge-reuse" title="AntD Button">[REUSE] SpinButton</span>
+                    <button class="btn btn-primary">QUAY NGAY</button>
+                    <button class="btn" style="margin-left: 10px;">THỬ LẠI</button>
+                </div>
+            </div>
+
+            <div class="history-area">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>Lịch sử</h3>
+                    <button class="btn" style="font-size: 12px;">Clear</button>
+                </div>
+                <div class="component-wrapper">
+                    <span class="badge-reuse" title="AntD Table">[REUSE] HistoryTable</span>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #000;">
+                                <th align="left">STT</th>
+                                <th align="left">Kết quả</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #ccc;">
+                                <td>1</td>
+                                <td><span class="tag">1</span><span class="tag">2</span><span class="tag">3</span></td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #ccc;">
+                                <td>2</td>
+                                <td><span class="tag">4</span><span class="tag">5</span><span class="tag">6</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 10px; text-align: center;">
+                        <span class="badge-new" title="Pagination Control">[NEW] TablePagination</span>
+                        [ 1 ] 2 3 4 >
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

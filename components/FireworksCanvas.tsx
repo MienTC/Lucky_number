@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 
 interface Particle {
   x: number;
@@ -28,9 +28,9 @@ const FireworksCanvas: React.FC<{ isActive: boolean }> = ({ isActive }) => {
   const animationRef = useRef<number | null>(null);
   const fireworksRef = useRef<Firework[]>([]);
 
-  const colors = ['#FFD700', '#FF1493', '#00F5FF', '#FF69B4', '#7B68EE', '#FFA500', '#32CD32', '#FF6347'];
+  const colors = useMemo(() => ['#FFD700', '#FF1493', '#00F5FF', '#FF69B4', '#7B68EE', '#FFA500', '#32CD32', '#FF6347'], []);
 
-  const createParticle = (x: number, y: number, color: string): Particle => {
+  const createParticle = useCallback((x: number, y: number, color: string): Particle => {
     const angle = Math.random() * Math.PI * 2;
     const speed = Math.random() * 8 + 2;
     return {
@@ -39,18 +39,17 @@ const FireworksCanvas: React.FC<{ isActive: boolean }> = ({ isActive }) => {
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       life: 0,
-      maxLife: 60 + Math.random() * 40,
+      maxLife: 120 + Math.random() * 80, // Increased duration (120-200 frames)
       color,
       size: Math.random() * 3 + 1,
-      gravity: 0.1,
-      friction: 0.99
+      gravity: 0.08, // Slightly less gravity for longer fall
+      friction: 0.995 // Less friction for longer travel
     };
-  };
+  }, []);
 
-  const createFirework = (): Firework => {
+  const createFirework = useCallback((): Firework => {
     const x = Math.random() * window.innerWidth;
     const y = window.innerHeight;
-    const targetY = window.innerHeight * 0.2 + Math.random() * window.innerHeight * 0.3;
 
     return {
       x,
@@ -59,9 +58,9 @@ const FireworksCanvas: React.FC<{ isActive: boolean }> = ({ isActive }) => {
       exploded: false,
       launchTime: Date.now()
     };
-  };
+  }, []);
 
-  const updateParticles = (particles: Particle[]): Particle[] => {
+  const updateParticles = useCallback((particles: Particle[]): Particle[] => {
     return particles
       .map(particle => ({
         ...particle,
@@ -72,9 +71,9 @@ const FireworksCanvas: React.FC<{ isActive: boolean }> = ({ isActive }) => {
         life: particle.life + 1
       }))
       .filter(particle => particle.life < particle.maxLife);
-  };
+  }, []);
 
-  const drawParticle = (ctx: CanvasRenderingContext2D, particle: Particle) => {
+  const drawParticle = useCallback((ctx: CanvasRenderingContext2D, particle: Particle) => {
     const alpha = 1 - (particle.life / particle.maxLife);
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -85,9 +84,9 @@ const FireworksCanvas: React.FC<{ isActive: boolean }> = ({ isActive }) => {
     ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-  };
+  }, []);
 
-  const animate = () => {
+  const animate = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -95,7 +94,7 @@ const FireworksCanvas: React.FC<{ isActive: boolean }> = ({ isActive }) => {
     if (!ctx) return;
 
     // Clear canvas with fade effect
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; // Slower fade for longer lasting effect
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Update and draw fireworks
@@ -106,8 +105,8 @@ const FireworksCanvas: React.FC<{ isActive: boolean }> = ({ isActive }) => {
           firework.y -= 8;
           if (firework.y <= window.innerHeight * 0.3) {
             firework.exploded = true;
-            // Create explosion particles
-            const particleCount = 80 + Math.random() * 40;
+            // Create explosion particles - increased count
+            const particleCount = 120 + Math.random() * 60; // More particles (120-180)
             const explosionColor = colors[Math.floor(Math.random() * colors.length)];
             for (let i = 0; i < particleCount; i++) {
               firework.particles.push(createParticle(firework.x, firework.y, explosionColor));
@@ -132,12 +131,13 @@ const FireworksCanvas: React.FC<{ isActive: boolean }> = ({ isActive }) => {
       })
       .filter(firework => firework.particles.length > 0 || !firework.exploded);
 
-    if (isActive && Math.random() < 0.1) {
+    // Increased frequency - higher probability of creating new fireworks
+    if (isActive && Math.random() < 0.25) { // Increased from 0.1 to 0.25 (25% chance)
       fireworksRef.current.push(createFirework());
     }
 
     animationRef.current = requestAnimationFrame(animate);
-  };
+  }, [isActive, colors, createParticle, updateParticles, drawParticle, createFirework]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -161,7 +161,7 @@ const FireworksCanvas: React.FC<{ isActive: boolean }> = ({ isActive }) => {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isActive]);
+  }, [isActive, animate]);
 
   useEffect(() => {
     if (!isActive) {

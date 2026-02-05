@@ -12,6 +12,8 @@ export interface AppSettings {
   autoSpin: boolean;
   autoSpinInterval: number; // in seconds
   favoriteNumbers: number[][];
+  maxRange: number;
+  customSoundUrl?: string;
 }
 
 const STORAGE_KEYS = {
@@ -92,7 +94,7 @@ export const lotteryStorage = {
     });
 
     const mostFrequentNumbers = Object.entries(numberFrequency)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
       .map(([num]) => parseInt(num));
 
@@ -113,10 +115,11 @@ export const settingsStorage = {
       const data = localStorage.getItem(STORAGE_KEYS.APP_SETTINGS);
       const defaultSettings: AppSettings = {
         soundEnabled: true,
-        theme: 'dark',
+        theme: 'light',
         autoSpin: false,
         autoSpinInterval: 30,
-        favoriteNumbers: []
+        favoriteNumbers: [],
+        maxRange: 99999
       };
 
       return data ? { ...defaultSettings, ...JSON.parse(data) } : defaultSettings;
@@ -124,10 +127,11 @@ export const settingsStorage = {
       console.warn('Error reading settings:', error);
       return {
         soundEnabled: true,
-        theme: 'dark',
+        theme: 'light',
         autoSpin: false,
         autoSpinInterval: 30,
-        favoriteNumbers: []
+        favoriteNumbers: [],
+        maxRange: 99999
       };
     }
   },

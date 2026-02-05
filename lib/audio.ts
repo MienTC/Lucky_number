@@ -2,20 +2,74 @@
 class AudioManager {
   private audioContext: AudioContext | null = null;
   private isInitialized = false;
+  private buffers: Map<string, AudioBuffer> = new Map();
 
   async init() {
-    if (this.isInitialized) return;
+    if (this.isInitialized && this.audioContext) {
+      // Resume if suspended (browser autoplay policy)
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
+      return;
+    }
 
     try {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       this.isInitialized = true;
+      
+      // Resume immediately in case it starts suspended
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
     } catch (error) {
       console.warn('Web Audio API not supported:', error);
     }
   }
 
+  // Ensure audio is ready (call this on user interaction)
+  async ensureReady() {
+    await this.init();
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      await this.audioContext.resume();
+    }
+  }
+
+  // Load a sound from URL
+  async loadSound(name: string, url: string) {
+    if (!this.audioContext) return;
+    try {
+      const response = await fetch(url);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+      this.buffers.set(name, audioBuffer);
+    } catch (error) {
+      console.warn(`Error loading sound ${name}:`, error);
+    }
+  }
+
+  // Play a sound from buffer
+  private playBuffer(name: string, volume: number = 0.5) {
+    if (!this.audioContext || !this.isInitialized) return;
+    const buffer = this.buffers.get(name);
+    if (!buffer) return;
+
+    const source = this.audioContext.createBufferSource();
+    source.buffer = buffer;
+
+    const gainNode = this.audioContext.createGain();
+    gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+
+    source.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+    source.start(0);
+  }
+
   // Play spinning sound effect
   async playSpinSound() {
+    if (this.buffers.has('spin')) {
+      this.playBuffer('spin');
+      return;
+    }
     if (!this.audioContext) return;
 
     try {
@@ -25,7 +79,6 @@ class AudioManager {
       oscillator.connect(gainNode);
       gainNode.connect(this.audioContext.destination);
 
-      // Create accelerating pitch effect
       oscillator.frequency.setValueAtTime(200, this.audioContext.currentTime);
       oscillator.frequency.exponentialRampToValueAtTime(800, this.audioContext.currentTime + 2);
 
@@ -41,28 +94,32 @@ class AudioManager {
 
   // Play win sound effect
   async playWinSound() {
+    if (this.buffers.has('win')) {
+      this.playBuffer('win', 0.8);
+      return;
+    }
     if (!this.audioContext) return;
 
     try {
-      // Create triumphant chord progression
       const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
 
       notes.forEach((freq, index) => {
         setTimeout(() => {
-          const oscillator = this.audioContext!.createOscillator();
-          const gainNode = this.audioContext!.createGain();
+          if (!this.audioContext) return;
+          const oscillator = this.audioContext.createOscillator();
+          const gainNode = this.audioContext.createGain();
 
           oscillator.connect(gainNode);
-          gainNode.connect(this.audioContext!.destination);
+          gainNode.connect(this.audioContext.destination);
 
-          oscillator.frequency.setValueAtTime(freq, this.audioContext!.currentTime);
+          oscillator.frequency.setValueAtTime(freq, this.audioContext.currentTime);
           oscillator.type = 'sine';
 
-          gainNode.gain.setValueAtTime(0.3, this.audioContext!.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext!.currentTime + 0.5);
+          gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.5);
 
           oscillator.start();
-          oscillator.stop(this.audioContext!.currentTime + 0.5);
+          oscillator.stop(this.audioContext.currentTime + 0.5);
         }, index * 100);
       });
     } catch (error) {
@@ -72,6 +129,10 @@ class AudioManager {
 
   // Play click sound for buttons
   async playClickSound() {
+    if (this.buffers.has('click')) {
+      this.playBuffer('click', 0.5);
+      return;
+    }
     if (!this.audioContext) return;
 
     try {
@@ -91,46 +152,6 @@ class AudioManager {
       oscillator.stop(this.audioContext.currentTime + 0.1);
     } catch (error) {
       console.warn('Error playing click sound:', error);
-    }
-  }
-
-  // Play background music (optional)
-  async playBackgroundMusic() {
-    // This would typically load an audio file
-    // For now, we'll create a simple ambient sound
-    if (!this.audioContext) return;
-
-    try {
-      const oscillator1 = this.audioContext.createOscillator();
-      const oscillator2 = this.audioContext.createOscillator();
-      const gainNode = this.audioContext.createGain();
-
-      oscillator1.connect(gainNode);
-      oscillator2.connect(gainNode);
-      gainNode.connect(this.audioContext.destination);
-
-      oscillator1.frequency.setValueAtTime(220, this.audioContext.currentTime); // A3
-      oscillator2.frequency.setValueAtTime(277.18, this.audioContext.currentTime); // C#4
-
-      oscillator1.type = 'sine';
-      oscillator2.type = 'sine';
-
-      gainNode.gain.setValueAtTime(0.05, this.audioContext.currentTime);
-
-      oscillator1.start();
-      oscillator2.start();
-
-      // Fade out after 30 seconds
-      setTimeout(() => {
-        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext!.currentTime + 2);
-        setTimeout(() => {
-          oscillator1.stop();
-          oscillator2.stop();
-        }, 2000);
-      }, 30000);
-
-    } catch (error) {
-      console.warn('Error playing background music:', error);
     }
   }
 }
