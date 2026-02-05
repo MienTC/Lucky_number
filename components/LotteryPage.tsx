@@ -528,7 +528,7 @@ const LotteryPage = () => {
               </Text>
               <InputNumber
                 min={1}
-                max={999999}
+                max={9999}
                 value={maxRange}
                 onChange={(val) => {
                   if (val) {
