@@ -88,6 +88,7 @@ const LotteryPage = () => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [maxRange, setMaxRange] = useState(99999);
   const [showSettings, setShowSettings] = useState(false);
+  const [showFullscreenSpinner, setShowFullscreenSpinner] = useState(false);
 
   useEffect(() => {
     const settings = settingsStorage.getSettings();
@@ -132,6 +133,7 @@ const LotteryPage = () => {
 
     setIsSpinning(true);
     setHasResult(false);
+    setShowFullscreenSpinner(true);
 
     const digits = Math.max(1, Math.floor(Math.log10(maxRange)) + 1);
     let counter = 0;
@@ -609,6 +611,80 @@ const LotteryPage = () => {
             </Button>
           </div>
         </Modal>
+
+        {/* Fullscreen Spinner Modal */}
+        {showFullscreenSpinner && (
+          <div
+            className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-4 animate-scale-up-fullscreen"
+            onClick={() => {
+              if (!isSpinning) {
+                setShowFullscreenSpinner(false);
+              }
+            }}
+          >
+            <div
+              className="flex flex-col items-center justify-center h-full w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Tết Decoration - Top */}
+              <div className="mb-8 text-center">
+                <h1 className="font-tet text-6xl sm:text-7xl md:text-8xl font-black mb-4 text-[#E5BA41] tracking-tight">
+                  TẾT AN KHANG
+                </h1>
+              </div>
+
+              {/* Number Cards - Fullscreen */}
+              <div className="flex gap-4 sm:gap-6 mb-12 flex-wrap justify-center w-full">
+                {numbers.map((num, idx) => (
+                  <div
+                    key={idx}
+                    className={`
+                      flex-1 min-w-[160px] max-w-[320px] aspect-3/4
+                      bg-gradient-to-br from-[#E5BA41] to-[#D4A835]
+                      border-4 border-[#0f172a] rounded-3xl md:rounded-[3rem]
+                      flex items-center justify-center 
+                      text-8xl sm:text-9xl md:text-[12rem] font-black
+                      transition-all duration-200
+                      shadow-[15px_15px_0px_0px_#0f172a]
+                      text-white
+                      ${isSpinning ? "animate-card-spin" : ""}
+                    `}
+                  >
+                    {num}
+                  </div>
+                ))}
+              </div>
+
+              {/* Status Text */}
+              <div className="text-center mb-8">
+                {isSpinning ? (
+                  <p className="text-2xl sm:text-3xl font-tet-alt font-bold text-secondary">
+                    Đang quay số...
+                  </p>
+                ) : (
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="flex items-center justify-center gap-6">
+                      <TrophyFilled className="text-amber-500 text-5xl sm:text-6xl md:text-7xl" />
+                      <span className="text-primary font-black text-5xl sm:text-6xl md:text-7xl tracking-tight">
+                        XIN CHÚC MỪNG!
+                      </span>
+                      <TrophyFilled className="text-amber-500 text-5xl sm:text-6xl md:text-7xl" />
+                    </div>
+                    <p className="text-3xl sm:text-4xl md:text-5xl text-secondary/60 font-tet-alt">
+                      Kết quả may mắn của bạn:
+                    </p>
+                    <p className="font-tet text-5xl sm:text-6xl md:text-7xl text-[#E5BA41] font-black tracking-tight">
+                      {numbers.join("")}
+                    </p>
+                    <p className="text-lg sm:text-xl text-secondary/50 mt-6 max-w-md">
+                      Nhấn ngoài hoặc chạm bất kỳ đâu để đóng
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Custom Styles */}
         <style jsx global>{`
