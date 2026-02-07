@@ -14,6 +14,9 @@ export interface AppSettings {
   favoriteNumbers: number[][];
   maxRange: number;
   customSoundUrl?: string;
+  useCustomSound?: boolean;
+  useCustomSpinSound?: boolean;
+  spinDuration?: number; // duration in seconds
 }
 
 const STORAGE_KEYS = {
@@ -119,7 +122,9 @@ export const settingsStorage = {
         autoSpin: false,
         autoSpinInterval: 30,
         favoriteNumbers: [],
-        maxRange: 99999
+        maxRange: 99999,
+        spinDuration: 5,
+        useCustomSpinSound: false
       };
 
       return data ? { ...defaultSettings, ...JSON.parse(data) } : defaultSettings;
@@ -131,7 +136,9 @@ export const settingsStorage = {
         autoSpin: false,
         autoSpinInterval: 30,
         favoriteNumbers: [],
-        maxRange: 99999
+        maxRange: 99999,
+        spinDuration: 5,
+        useCustomSpinSound: false
       };
     }
   },
