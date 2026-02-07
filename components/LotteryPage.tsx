@@ -1,42 +1,39 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import localFont from "next/font/local";
 import {
-  ConfigProvider,
-  Button,
-  Modal,
-  Table,
-  Typography,
-  InputNumber,
-  Switch,
-  Space,
-  Tooltip,
-  Avatar,
-  Tag,
-  message,
-  theme as antdTheme,
-} from "antd";
-import {
-  SoundOutlined,
-  SoundFilled,
   DeleteOutlined,
   ReloadOutlined,
+  SettingOutlined,
+  SoundFilled,
+  SoundOutlined,
   ThunderboltFilled,
   TrophyFilled,
-  CrownFilled,
-  BulbOutlined,
-  BulbFilled,
-  SettingOutlined,
+  UploadOutlined,
+  AudioOutlined,
 } from "@ant-design/icons";
+import {
+  Avatar,
+  Button,
+  ConfigProvider,
+  InputNumber,
+  Modal,
+  Switch,
+  Table,
+  Typography,
+  Upload,
+  message,
+} from "antd";
+import { Trash2 as IconTrash } from "lucide-react";
+import localFont from "next/font/local";
+import React, { useCallback, useEffect, useState } from "react";
+import UAlertDialog from "~/components/ui/ualert-dialog";
 import { audioManager } from "../lib/audio";
+import { assetDB, AUDIO_KEYS } from "../lib/db";
 import {
   lotteryStorage,
   settingsStorage,
   type LotteryResult,
 } from "../lib/storage";
-import { Trash2 as IconTrash } from "lucide-react";
-import UAlertDialog from "~/components/ui/ualert-dialog";
 import FireworksCanvas from "./FireworksCanvas";
 
 const { Title, Text } = Typography;
@@ -95,12 +92,51 @@ const LotteryPage = () => {
   const [maxRange, setMaxRange] = useState(99999);
   const [showSettings, setShowSettings] = useState(false);
   const [showWinModal, setShowWinModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [useCustomSound, setUseCustomSound] = useState(false);
+  const [hasCustomSound, setHasCustomSound] = useState(false);
+  const [useCustomSpinSound, setUseCustomSpinSound] = useState(false);
+  const [hasCustomSpinSound, setHasCustomSpinSound] = useState(false);
+  const [spinDuration, setSpinDuration] = useState(5);
 
   useEffect(() => {
     const settings = settingsStorage.getSettings();
     setSoundEnabled(settings.soundEnabled);
     setMaxRange(settings.maxRange || 99999);
+    setUseCustomSound(!!settings.useCustomSound);
+    setUseCustomSpinSound(!!settings.useCustomSpinSound);
+    setSpinDuration(settings.spinDuration || 5);
     setHistory(lotteryStorage.getHistory());
+
+    // Load custom sounds if exist
+    assetDB.getAudio(AUDIO_KEYS.WIN).then((buffer) => {
+      if (buffer) {
+        setHasCustomSound(true);
+        if (settings.useCustomSound) {
+          audioManager.loadFromArrayBuffer("win", buffer);
+        }
+      }
+    });
+
+    assetDB.getAudio(AUDIO_KEYS.SPIN).then((buffer) => {
+      if (buffer) {
+        setHasCustomSpinSound(true);
+        if (settings.useCustomSpinSound) {
+          audioManager.loadFromArrayBuffer("spin", buffer);
+        }
+      }
+    });
+
+    // Try to load default sound effects if they exist in public folder
+    if (!settings.useCustomSpinSound) {
+      audioManager.loadSound("spin", "/music.mp3");
+    }
+    audioManager.loadSound("spin", "/music.mp3");
+    audioManager.loadSound(
+      "win",
+      "/hieu_ung_am_thanh_chien_thang-www_tiengdong_com.mp3",
+    );
+    audioManager.loadSound("click", "/click.mp3");
 
     const digits = Math.max(
       1,
@@ -140,11 +176,12 @@ const LotteryPage = () => {
 
     const digits = Math.max(1, Math.floor(Math.log10(maxRange)) + 1);
     let counter = 0;
+    const totalSteps = Math.max(10, spinDuration * 5); // Approximately 5 updates per second
     const interval = setInterval(() => {
       setNumbers((prev) => prev.map(() => Math.floor(Math.random() * 10)));
       counter++;
 
-      if (counter > 25) {
+      if (counter > totalSteps) {
         clearInterval(interval);
         const winner = Math.floor(Math.random() * maxRange) + 1;
         const winnerStr = winner.toString().padStart(digits, "0");
@@ -154,14 +191,16 @@ const LotteryPage = () => {
         setIsSpinning(false);
         setHasResult(true);
         setShowWinModal(true);
+        audioManager.stopSpinSound();
 
         // Save to history immediately
         lotteryStorage.addResult(finalNumbers);
         setHistory(lotteryStorage.getHistory());
+        setCurrentPage(1);
 
         setTimeout(() => playSound("win"), 300);
       }
-    }, 200);
+    }, 180);
   };
 
   const reset = async () => {
@@ -174,6 +213,11 @@ const LotteryPage = () => {
   const deleteRecord = (id: string) => {
     const newHistory = history.filter((item) => item.id !== id);
     setHistory(newHistory);
+    // Adjust current page if last item on page is deleted
+    const maxPage = Math.max(1, Math.ceil(newHistory.length / 5));
+    if (currentPage > maxPage) {
+      setCurrentPage(maxPage);
+    }
     // Overwrite storage with updated history
     localStorage.setItem("lottery_history", JSON.stringify(newHistory));
     message.success("Đã xóa kết quả");
@@ -186,7 +230,7 @@ const LotteryPage = () => {
       width: 60,
       render: (_: unknown, __: unknown, index: number) => (
         <span className="text-white/70 font-black text-4xl">
-          {history.length - index}
+          {history.length - ((currentPage - 1) * 5 + index)}
         </span>
       ),
     },
@@ -411,6 +455,7 @@ const LotteryPage = () => {
                         onOk() {
                           lotteryStorage.clearHistory();
                           setHistory([]);
+                          setCurrentPage(1);
                           message.success("Đã xóa tất cả lịch sử");
                         },
                       });
@@ -425,7 +470,9 @@ const LotteryPage = () => {
                     dataSource={history}
                     columns={columns}
                     pagination={{
+                      current: currentPage,
                       pageSize: 5,
+                      onChange: (page) => setCurrentPage(page),
                       size: "large",
                       showSizeChanger: false,
                       className: "px-3 my-2",
@@ -641,6 +688,206 @@ const LotteryPage = () => {
                       settingsStorage.updateSettings({ soundEnabled: val });
                     }}
                     className={soundEnabled ? "bg-primary" : ""}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-3 p-4 bg-white/10 rounded-xl border border-white/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AudioOutlined className="text-white text-xl" />
+                      <Text className="font-semibold !text-white text-xl">
+                        Nhạc lúc quay tùy chỉnh
+                      </Text>
+                    </div>
+                    <Switch
+                      disabled={!hasCustomSpinSound}
+                      checked={useCustomSpinSound}
+                      onChange={(val) => {
+                        setUseCustomSpinSound(val);
+                        settingsStorage.updateSettings({
+                          useCustomSpinSound: val,
+                        });
+                        if (val) {
+                          assetDB.getAudio(AUDIO_KEYS.SPIN).then((buffer) => {
+                            if (buffer) {
+                              audioManager.loadFromArrayBuffer("spin", buffer);
+                            }
+                          });
+                        } else {
+                          // Reload default
+                          audioManager.loadSound("spin", "/music.mp3");
+                        }
+                      }}
+                      className={useCustomSpinSound ? "bg-primary" : ""}
+                    />
+                  </div>
+
+                  <Upload
+                    accept="audio/*"
+                    showUploadList={false}
+                    beforeUpload={async (file) => {
+                      try {
+                        await assetDB.saveAudio(AUDIO_KEYS.SPIN, file);
+                        setHasCustomSpinSound(true);
+                        setUseCustomSpinSound(true);
+                        settingsStorage.updateSettings({
+                          useCustomSpinSound: true,
+                        });
+
+                        const arrayBuffer = await file.arrayBuffer();
+                        await audioManager.loadFromArrayBuffer(
+                          "spin",
+                          arrayBuffer,
+                        );
+
+                        message.success("Đã tải nhạc lúc quay thành công!");
+                      } catch (err) {
+                        message.error("Lỗi khi tải nhạc!");
+                        console.error(err);
+                      }
+                      return false;
+                    }}
+                  >
+                    <Button
+                      icon={<UploadOutlined />}
+                      className="w-full h-12 border-dashed border-white/30 bg-white/5 text-white hover:!bg-white/10"
+                    >
+                      {hasCustomSpinSound
+                        ? "Thay đổi nhạc lúc quay"
+                        : "Tải nhạc lúc quay (.mp3, .wav)"}
+                    </Button>
+                  </Upload>
+
+                  {hasCustomSpinSound && (
+                    <Button
+                      type="text"
+                      size="small"
+                      onClick={async () => {
+                        await assetDB.removeAudio(AUDIO_KEYS.SPIN);
+                        setHasCustomSpinSound(false);
+                        setUseCustomSpinSound(false);
+                        settingsStorage.updateSettings({
+                          useCustomSpinSound: false,
+                        });
+                        audioManager.loadSound("spin", "/music.mp3");
+                        message.info("Đã xóa nhạc lúc quay tùy chỉnh");
+                      }}
+                      className="text-white hover:text-white"
+                    >
+                      Xóa nhạc lúc quay hiện tại
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-3 p-4 bg-white/10 rounded-xl border border-white/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AudioOutlined className="text-white text-xl" />
+                      <Text className="font-semibold !text-white text-xl">
+                        Nhạc chúc mừng tùy chỉnh
+                      </Text>
+                    </div>
+                    <Switch
+                      disabled={!hasCustomSound}
+                      checked={useCustomSound}
+                      onChange={(val) => {
+                        setUseCustomSound(val);
+                        settingsStorage.updateSettings({ useCustomSound: val });
+                        if (val) {
+                          assetDB.getAudio(AUDIO_KEYS.WIN).then((buffer) => {
+                            if (buffer) {
+                              audioManager.loadFromArrayBuffer("win", buffer);
+                            }
+                          });
+                        } else {
+                          audioManager.clearBuffer("win");
+                        }
+                      }}
+                      className={useCustomSound ? "bg-primary" : ""}
+                    />
+                  </div>
+
+                  <Upload
+                    accept="audio/*"
+                    showUploadList={false}
+                    beforeUpload={async (file) => {
+                      try {
+                        await assetDB.saveAudio(AUDIO_KEYS.WIN, file);
+                        setHasCustomSound(true);
+                        setUseCustomSound(true);
+                        settingsStorage.updateSettings({
+                          useCustomSound: true,
+                        });
+
+                        const arrayBuffer = await file.arrayBuffer();
+                        await audioManager.loadFromArrayBuffer(
+                          "win",
+                          arrayBuffer,
+                        );
+
+                        message.success("Đã tải nhạc chúc mừng thành công!");
+                      } catch (err) {
+                        message.error("Lỗi khi tải nhạc!");
+                        console.error(err);
+                      }
+                      return false; // Prevent auto upload
+                    }}
+                  >
+                    <Button
+                      icon={<UploadOutlined />}
+                      className="w-full h-12 border-dashed border-white/30 bg-white/5 text-white hover:!bg-white/10"
+                    >
+                      {hasCustomSound
+                        ? "Thay đổi nhạc chúc mừng"
+                        : "Tải nhạc chúc mừng (.mp3, .wav)"}
+                    </Button>
+                  </Upload>
+
+                  {hasCustomSound && (
+                    <Button
+                      type="text"
+                      size="small"
+                      onClick={async () => {
+                        await assetDB.removeAudio(AUDIO_KEYS.WIN);
+                        setHasCustomSound(false);
+                        setUseCustomSound(false);
+                        settingsStorage.updateSettings({
+                          useCustomSound: false,
+                        });
+                        audioManager.clearBuffer("win");
+                        message.info("Đã xóa nhạc chúc mừng tùy chỉnh");
+                      }}
+                      className="text-white hover:text-white"
+                    >
+                      Xóa nhạc chúc mừng hiện tại
+                    </Button>
+                  )}
+                </div>
+
+                {/* Spin Duration Setting */}
+                <div className="flex flex-col gap-2">
+                  <Text
+                    strong
+                    className="text-white text-2xl uppercase tracking-wider"
+                  >
+                    Thời gian quay (giây)
+                  </Text>
+                  <InputNumber
+                    min={1}
+                    max={60}
+                    value={spinDuration}
+                    onChange={(val) => {
+                      if (val) {
+                        setSpinDuration(val);
+                        settingsStorage.updateSettings({ spinDuration: val });
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      height: "56px",
+                      fontSize: "24px",
+                      fontWeight: "bold",
+                    }}
                   />
                 </div>
 
