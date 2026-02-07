@@ -94,7 +94,7 @@ class AudioManager {
       try {
         source.stop();
       } catch (e) {
-        // Source might have already stopped
+
       }
       this.activeSources.delete(name);
     }

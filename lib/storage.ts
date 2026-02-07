@@ -17,6 +17,9 @@ export interface AppSettings {
   useCustomSound?: boolean;
   useCustomSpinSound?: boolean;
   spinDuration?: number; // duration in seconds
+  titleText?: string;
+  titleFontSize?: number;
+  titleColor?: string;
 }
 
 const STORAGE_KEYS = {
@@ -124,7 +127,10 @@ export const settingsStorage = {
         favoriteNumbers: [],
         maxRange: 99999,
         spinDuration: 5,
-        useCustomSpinSound: false
+        useCustomSpinSound: false,
+        titleText: 'Vui Xuân Cùng Ân Thịnh',
+        titleFontSize: 85,
+        titleColor: '#ffffff'
       };
 
       return data ? { ...defaultSettings, ...JSON.parse(data) } : defaultSettings;
@@ -138,7 +144,10 @@ export const settingsStorage = {
         favoriteNumbers: [],
         maxRange: 99999,
         spinDuration: 5,
-        useCustomSpinSound: false
+        useCustomSpinSound: false,
+        titleText: 'Vui Xuân Cùng Ân Thịnh',
+        titleFontSize: 85,
+        titleColor: '#ffffff'
       };
     }
   },
