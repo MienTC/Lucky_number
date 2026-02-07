@@ -98,6 +98,9 @@ const LotteryPage = () => {
   const [useCustomSpinSound, setUseCustomSpinSound] = useState(false);
   const [hasCustomSpinSound, setHasCustomSpinSound] = useState(false);
   const [spinDuration, setSpinDuration] = useState(5);
+  const [titleText, setTitleText] = useState("Vui Xuân Cùng Ân Thịnh");
+  const [titleFontSize, setTitleFontSize] = useState(85);
+  const [titleColor, setTitleColor] = useState("#ffffff");
 
   useEffect(() => {
     const settings = settingsStorage.getSettings();
@@ -106,6 +109,9 @@ const LotteryPage = () => {
     setUseCustomSound(!!settings.useCustomSound);
     setUseCustomSpinSound(!!settings.useCustomSpinSound);
     setSpinDuration(settings.spinDuration || 5);
+    setTitleText(settings.titleText || "Vui Xuân Cùng Ân Thịnh");
+    setTitleFontSize(settings.titleFontSize || 85);
+    setTitleColor(settings.titleColor || "#ffffff");
     setHistory(lotteryStorage.getHistory());
 
     // Load custom sounds if exist
@@ -371,9 +377,13 @@ const LotteryPage = () => {
                 <div className="flex flex-col gap-15 items-center justify-center h-full">
                   {/* Title */}
                   <h1
-                    className={`${campana.className} text-[85px] font-black tracking-tighter text-white text-center leading-none`}
+                    className={`${campana.className} font-black tracking-tighter text-center leading-none`}
+                    style={{
+                      fontSize: `${titleFontSize}px`,
+                      color: titleColor,
+                    }}
                   >
-                    Vui Xuân Cùng Ân Thịnh
+                    {titleText}
                   </h1>
 
                   {/* Number Cards */}
@@ -889,6 +899,66 @@ const LotteryPage = () => {
                       fontWeight: "bold",
                     }}
                   />
+                </div>
+
+                {/* Title Customization */}
+                <div className="flex flex-col gap-3 p-4 bg-white/10 rounded-xl border border-white/20">
+                  <Text
+                    strong
+                    className="text-white text-xl uppercase tracking-wider"
+                  >
+                    Tùy chỉnh tiêu đề chính
+                  </Text>
+
+                  <div className="flex flex-col gap-2">
+                    <Text className="text-white/70 text-sm">Nội dung</Text>
+                    <input
+                      className="w-full h-12 px-4 bg-white/10 border border-white/20 rounded-xl text-white font-bold"
+                      value={titleText}
+                      onChange={(e) => {
+                        setTitleText(e.target.value);
+                        settingsStorage.updateSettings({
+                          titleText: e.target.value,
+                        });
+                      }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <Text className="text-white/70 text-sm">Cỡ chữ (px)</Text>
+                      <InputNumber
+                        min={10}
+                        max={200}
+                        value={titleFontSize}
+                        onChange={(val) => {
+                          if (val) {
+                            setTitleFontSize(val);
+                            settingsStorage.updateSettings({
+                              titleFontSize: val,
+                            });
+                          }
+                        }}
+                        style={{ width: "100%", height: "48px" }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Text className="text-white/70 text-sm">
+                        Mã màu (Hex)
+                      </Text>
+                      <input
+                        className="w-full h-12 px-4 bg-white/10 border border-white/20 rounded-xl text-white font-mono"
+                        value={titleColor}
+                        onChange={(e) => {
+                          setTitleColor(e.target.value);
+                          settingsStorage.updateSettings({
+                            titleColor: e.target.value,
+                          });
+                        }}
+                        placeholder="#ffffff"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Done Button */}
