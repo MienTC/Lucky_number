@@ -391,7 +391,8 @@ const LotteryPage = () => {
                     className={`${campana.className} font-semibold tracking-tight text-center leading-normal`}
                     style={{
                       fontSize: `${titleFontSize}px`,
-                      filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.5))",
+                      filter: "drop-shadow(0 4px 15px rgba(0,0,0,0.6))",
+                      padding: "25px 0",
                       // Pass color as CSS variable for the class to use
                       ["--title-color" as any]: titleColor,
                     }}
@@ -1165,17 +1166,17 @@ const LotteryPage = () => {
             .tet-gradient-text {
               background: linear-gradient(
                 to bottom,
-                #fff9c4 0%,
-                var(--title-color) 45%,
-                #b8860b 100%
+                #ffd700 0%,
+                #d4af37 40%,
+                var(--title-color) 70%,
+                #5d2906 100%
               );
               -webkit-background-clip: text;
               background-clip: text;
               -webkit-text-fill-color: transparent;
               color: transparent;
               display: inline-block;
-              padding: 0.2em 0.1em;
-              /* Fallback for browsers that don't support background-clip: text */
+              padding: 0.15em 0.05em;
               background-color: var(--title-color);
             }
           `}</style>
