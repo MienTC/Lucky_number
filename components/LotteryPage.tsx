@@ -392,20 +392,11 @@ const LotteryPage = () => {
                     style={{
                       fontSize: `${titleFontSize}px`,
                       filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.5))",
-                      padding: "20px 0",
+                      // Pass color as CSS variable for the class to use
+                      ["--title-color" as any]: titleColor,
                     }}
                   >
-                    <span
-                      style={{
-                        background: `linear-gradient(to bottom, #FFF9C4 0%, ${titleColor} 50%, #B8860B 100%)`,
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        display: "inline-block",
-                        padding: "0.2em 0.1em",
-                      }}
-                    >
-                      {titleText}
-                    </span>
+                    <span className="tet-gradient-text">{titleText}</span>
                   </h1>
 
                   {/* Number Cards */}
@@ -1169,6 +1160,23 @@ const LotteryPage = () => {
             }
             .animate-pop-in {
               animation: pop-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+
+            .tet-gradient-text {
+              background: linear-gradient(
+                to bottom,
+                #fff9c4 0%,
+                var(--title-color) 45%,
+                #b8860b 100%
+              );
+              -webkit-background-clip: text;
+              background-clip: text;
+              -webkit-text-fill-color: transparent;
+              color: transparent;
+              display: inline-block;
+              padding: 0.2em 0.1em;
+              /* Fallback for browsers that don't support background-clip: text */
+              background-color: var(--title-color);
             }
           `}</style>
         </div>
