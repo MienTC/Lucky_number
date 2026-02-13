@@ -388,17 +388,24 @@ const LotteryPage = () => {
                 <div className="flex flex-col gap-15 items-center justify-center h-full">
                   {/* Title */}
                   <h1
-                    className={`${campana.className} font-semibold tracking-tight text-center leading-[1.6]`}
+                    className={`${campana.className} font-semibold tracking-tight text-center leading-normal`}
                     style={{
                       fontSize: `${titleFontSize}px`,
-                      background: `linear-gradient(to bottom, #FFF9C4 0%, ${titleColor} 50%, #B8860B 100%)`,
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.4))",
-                      padding: "0 0.2em",
+                      filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.5))",
+                      padding: "20px 0",
                     }}
                   >
-                    {titleText}
+                    <span
+                      style={{
+                        background: `linear-gradient(to bottom, #FFF9C4 0%, ${titleColor} 50%, #B8860B 100%)`,
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        display: "inline-block",
+                        padding: "0.2em 0.1em",
+                      }}
+                    >
+                      {titleText}
+                    </span>
                   </h1>
 
                   {/* Number Cards */}
