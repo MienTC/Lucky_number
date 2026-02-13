@@ -83,6 +83,30 @@ const BentoTile = ({
   </div>
 );
 
+const TetTitle = ({
+  text,
+  fontSize,
+  mainColor,
+}: {
+  text: string;
+  fontSize: number;
+  mainColor: string;
+}) => (
+  <div className="relative select-none overflow-visible w-full flex justify-center">
+    <h1
+      className={`${campana.className} text-center leading-normal tracking-tight drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)] whitespace-nowrap`}
+      style={{ fontSize: `${fontSize}px` }}
+    >
+      <span
+        className="tet-gradient-text"
+        style={{ ["--title-color" as any]: mainColor }}
+      >
+        {text}
+      </span>
+    </h1>
+  </div>
+);
+
 const LotteryPage = () => {
   const [numbers, setNumbers] = useState([0, 0, 0, 0, 0]);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -386,19 +410,12 @@ const LotteryPage = () => {
             <div className="lg:col-span-3 h-full bg-[#FA5C5C] rounded-xl overflow-hidden">
               <BentoTile>
                 <div className="flex flex-col gap-15 items-center justify-center h-full">
-                  {/* Title */}
-                  <h1
-                    className={`${campana.className} font-semibold tracking-tight text-center leading-normal`}
-                    style={{
-                      fontSize: `${titleFontSize}px`,
-                      filter: "drop-shadow(0 4px 15px rgba(0,0,0,0.6))",
-                      padding: "25px 0",
-                      // Pass color as CSS variable for the class to use
-                      ["--title-color" as any]: titleColor,
-                    }}
-                  >
-                    <span className="tet-gradient-text">{titleText}</span>
-                  </h1>
+                  {/* Title Section */}
+                  <TetTitle
+                    text={titleText}
+                    fontSize={titleFontSize}
+                    mainColor={titleColor}
+                  />
 
                   {/* Number Cards */}
                   <div
@@ -774,7 +791,7 @@ const LotteryPage = () => {
                   >
                     <Button
                       icon={<UploadOutlined />}
-                      className="w-full h-12 border-dashed border-white/30 bg-white/5 text-white hover:!bg-white/10"
+                      className="w-full h-12 border-dashed border-white/30 bg-white/5 text-white hover:bg-white/10!"
                     >
                       {hasCustomSpinSound
                         ? "Thay đổi nhạc lúc quay"
@@ -859,7 +876,7 @@ const LotteryPage = () => {
                   >
                     <Button
                       icon={<UploadOutlined />}
-                      className="w-full h-12 border-dashed border-white/30 bg-white/5 text-white hover:!bg-white/10"
+                      className="w-full h-12 border-dashed border-white/30 bg-white/5 text-white hover:bg-white/10!"
                     >
                       {hasCustomSound
                         ? "Thay đổi nhạc chúc mừng"
@@ -1166,18 +1183,19 @@ const LotteryPage = () => {
             .tet-gradient-text {
               background: linear-gradient(
                 to bottom,
-                #ffd700 0%,
-                #d4af37 40%,
-                var(--title-color) 70%,
-                #5d2906 100%
+                #fffb91 0%,
+                #ffd700 25%,
+                var(--title-color) 60%,
+                #8b4513 100%
               );
               -webkit-background-clip: text;
               background-clip: text;
               -webkit-text-fill-color: transparent;
               color: transparent;
               display: inline-block;
-              padding: 0.15em 0.05em;
-              background-color: var(--title-color);
+              padding: 0.4em 0.1em;
+              margin: -0.4em -0.1em;
+              line-height: 1.5;
             }
           `}</style>
         </div>
