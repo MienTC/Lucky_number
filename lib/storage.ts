@@ -20,6 +20,7 @@ export interface AppSettings {
   titleText?: string;
   titleFontSize?: number;
   titleColor?: string;
+  churchName?: string;
 }
 
 const STORAGE_KEYS = {
@@ -130,7 +131,8 @@ export const settingsStorage = {
         useCustomSpinSound: false,
         titleText: 'Vui Xuân Cùng Ân Thịnh',
         titleFontSize: 85,
-        titleColor: '#ffffff'
+        titleColor: '#ffffff',
+        churchName: 'Giáo Xứ Ân Thịnh'
       };
 
       return data ? { ...defaultSettings, ...JSON.parse(data) } : defaultSettings;
@@ -147,7 +149,8 @@ export const settingsStorage = {
         useCustomSpinSound: false,
         titleText: 'Vui Xuân Cùng Ân Thịnh',
         titleFontSize: 85,
-        titleColor: '#ffffff'
+        titleColor: '#ffffff',
+        churchName: 'Giáo Xứ Ân Thịnh'
       };
     }
   },

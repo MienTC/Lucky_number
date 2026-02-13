@@ -28,7 +28,7 @@ import localFont from "next/font/local";
 import React, { useCallback, useEffect, useState } from "react";
 import UAlertDialog from "~/components/ui/ualert-dialog";
 import { audioManager } from "../lib/audio";
-import { assetDB, AUDIO_KEYS } from "../lib/db";
+import { assetDB, ASSET_KEYS } from "../lib/db";
 import {
   lotteryStorage,
   settingsStorage,
@@ -100,7 +100,9 @@ const LotteryPage = () => {
   const [spinDuration, setSpinDuration] = useState(5);
   const [titleText, setTitleText] = useState("Vui Xuân Cùng Ân Thịnh");
   const [titleFontSize, setTitleFontSize] = useState(85);
-  const [titleColor, setTitleColor] = useState("#ffffff");
+  const [titleColor, setTitleColor] = useState("#F6CE71");
+  const [churchName, setChurchName] = useState("Giáo Xứ Ân Thịnh");
+  const [logoUrl, setLogoUrl] = useState("/logo1.jpg");
 
   useEffect(() => {
     const settings = settingsStorage.getSettings();
@@ -111,11 +113,20 @@ const LotteryPage = () => {
     setSpinDuration(settings.spinDuration || 5);
     setTitleText(settings.titleText || "Vui Xuân Cùng Ân Thịnh");
     setTitleFontSize(settings.titleFontSize || 85);
-    setTitleColor(settings.titleColor || "#ffffff");
+    setTitleColor(settings.titleColor || "#F6CE71");
+    setChurchName(settings.churchName || "Giáo Xứ Ân Thịnh");
     setHistory(lotteryStorage.getHistory());
 
+    // Load custom logo
+    assetDB.getAudio(ASSET_KEYS.LOGO).then((buffer) => {
+      if (buffer) {
+        const blob = new Blob([buffer]);
+        setLogoUrl(URL.createObjectURL(blob));
+      }
+    });
+
     // Load custom sounds if exist
-    assetDB.getAudio(AUDIO_KEYS.WIN).then((buffer) => {
+    assetDB.getAudio(ASSET_KEYS.WIN).then((buffer) => {
       if (buffer) {
         setHasCustomSound(true);
         if (settings.useCustomSound) {
@@ -124,7 +135,7 @@ const LotteryPage = () => {
       }
     });
 
-    assetDB.getAudio(AUDIO_KEYS.SPIN).then((buffer) => {
+    assetDB.getAudio(ASSET_KEYS.SPIN).then((buffer) => {
       if (buffer) {
         setHasCustomSpinSound(true);
         if (settings.useCustomSpinSound) {
@@ -235,7 +246,7 @@ const LotteryPage = () => {
       key: "index",
       width: 60,
       render: (_: unknown, __: unknown, index: number) => (
-        <span className="text-white/70 font-black text-4xl">
+        <span className="text-[#D8E983] font-black text-2xl">
           {history.length - ((currentPage - 1) * 5 + index)}
         </span>
       ),
@@ -325,7 +336,7 @@ const LotteryPage = () => {
           >
             <div className="flex items-center gap-3">
               <Avatar
-                src="/logo1.jpg"
+                src={logoUrl}
                 size={38}
                 className="border-2 border-white/30 shadow-[2px_2px_0px_0px_rgba(255,255,255,0.1)] shrink-0"
               />
@@ -334,7 +345,7 @@ const LotteryPage = () => {
                   level={5}
                   className={`!m-0 !mb-0 font-black tracking-tight text-white! !text-lg`}
                 >
-                  Giáo Xứ Ân Thịnh
+                  {churchName}
                 </Title>
               </div>
             </div>
@@ -377,10 +388,14 @@ const LotteryPage = () => {
                 <div className="flex flex-col gap-15 items-center justify-center h-full">
                   {/* Title */}
                   <h1
-                    className={`${campana.className} font-black tracking-tighter text-center leading-none`}
+                    className={`${campana.className} font-semibold tracking-tight text-center leading-[1.6]`}
                     style={{
                       fontSize: `${titleFontSize}px`,
-                      color: titleColor,
+                      background: `linear-gradient(to bottom, #FFF9C4 0%, ${titleColor} 50%, #B8860B 100%)`,
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.4))",
+                      padding: "0 0.2em",
                     }}
                   >
                     {titleText}
@@ -718,7 +733,7 @@ const LotteryPage = () => {
                           useCustomSpinSound: val,
                         });
                         if (val) {
-                          assetDB.getAudio(AUDIO_KEYS.SPIN).then((buffer) => {
+                          assetDB.getAudio(ASSET_KEYS.SPIN).then((buffer) => {
                             if (buffer) {
                               audioManager.loadFromArrayBuffer("spin", buffer);
                             }
@@ -737,7 +752,7 @@ const LotteryPage = () => {
                     showUploadList={false}
                     beforeUpload={async (file) => {
                       try {
-                        await assetDB.saveAudio(AUDIO_KEYS.SPIN, file);
+                        await assetDB.saveAudio(ASSET_KEYS.SPIN, file);
                         setHasCustomSpinSound(true);
                         setUseCustomSpinSound(true);
                         settingsStorage.updateSettings({
@@ -773,7 +788,7 @@ const LotteryPage = () => {
                       type="text"
                       size="small"
                       onClick={async () => {
-                        await assetDB.removeAudio(AUDIO_KEYS.SPIN);
+                        await assetDB.removeAudio(ASSET_KEYS.SPIN);
                         setHasCustomSpinSound(false);
                         setUseCustomSpinSound(false);
                         settingsStorage.updateSettings({
@@ -804,7 +819,7 @@ const LotteryPage = () => {
                         setUseCustomSound(val);
                         settingsStorage.updateSettings({ useCustomSound: val });
                         if (val) {
-                          assetDB.getAudio(AUDIO_KEYS.WIN).then((buffer) => {
+                          assetDB.getAudio(ASSET_KEYS.WIN).then((buffer) => {
                             if (buffer) {
                               audioManager.loadFromArrayBuffer("win", buffer);
                             }
@@ -822,7 +837,7 @@ const LotteryPage = () => {
                     showUploadList={false}
                     beforeUpload={async (file) => {
                       try {
-                        await assetDB.saveAudio(AUDIO_KEYS.WIN, file);
+                        await assetDB.saveAudio(ASSET_KEYS.WIN, file);
                         setHasCustomSound(true);
                         setUseCustomSound(true);
                         settingsStorage.updateSettings({
@@ -858,7 +873,7 @@ const LotteryPage = () => {
                       type="text"
                       size="small"
                       onClick={async () => {
-                        await assetDB.removeAudio(AUDIO_KEYS.WIN);
+                        await assetDB.removeAudio(ASSET_KEYS.WIN);
                         setHasCustomSound(false);
                         setUseCustomSound(false);
                         settingsStorage.updateSettings({
@@ -946,18 +961,93 @@ const LotteryPage = () => {
                       <Text className="text-white/70 text-sm">
                         Mã màu (Hex)
                       </Text>
-                      <input
-                        className="w-full h-12 px-4 bg-white/10 border border-white/20 rounded-xl text-white font-mono"
-                        value={titleColor}
-                        onChange={(e) => {
-                          setTitleColor(e.target.value);
-                          settingsStorage.updateSettings({
-                            titleColor: e.target.value,
-                          });
-                        }}
-                        placeholder="#ffffff"
-                      />
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 font-mono text-lg pointer-events-none">
+                          #
+                        </span>
+                        <input
+                          className="w-full h-12 pl-8 pr-4 bg-white/10 border border-white/20 rounded-xl text-white font-mono text-lg"
+                          value={titleColor.replace("#", "")}
+                          onChange={(e) => {
+                            let val = e.target.value.replace("#", "");
+                            // Keep only valid hex characters and limit to 6
+                            val = val.replace(/[^0-9A-Fa-f]/g, "").slice(0, 6);
+                            const newColor = `#${val}`;
+                            setTitleColor(newColor);
+                            settingsStorage.updateSettings({
+                              titleColor: newColor,
+                            });
+                          }}
+                          placeholder="ffffff"
+                        />
+                      </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Church Name & Logo Customization */}
+                <div className="flex flex-col gap-3 p-4 bg-white/10 rounded-xl border border-white/20">
+                  <Text
+                    strong
+                    className="text-white text-xl uppercase tracking-wider"
+                  >
+                    Tùy chỉnh Logo & Tên đơn vị
+                  </Text>
+
+                  <div className="flex flex-col gap-2">
+                    <Text className="text-white/70 text-sm">Tên đơn vị</Text>
+                    <input
+                      className="w-full h-12 px-4 bg-white/10 border border-white/20 rounded-xl text-white font-bold"
+                      value={churchName}
+                      onChange={(e) => {
+                        setChurchName(e.target.value);
+                        settingsStorage.updateSettings({
+                          churchName: e.target.value,
+                        });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Text className="text-white/70 text-sm">Logo đơn vị</Text>
+                    <Upload
+                      accept="image/*"
+                      showUploadList={false}
+                      beforeUpload={async (file) => {
+                        try {
+                          await assetDB.saveAudio(ASSET_KEYS.LOGO, file);
+                          const arrayBuffer = await file.arrayBuffer();
+                          const blob = new Blob([arrayBuffer]);
+                          setLogoUrl(URL.createObjectURL(blob));
+                          message.success("Đã cập nhật logo thành công!");
+                        } catch (err) {
+                          message.error("Lỗi khi tải logo!");
+                          console.error(err);
+                        }
+                        return false;
+                      }}
+                    >
+                      <Button
+                        icon={<UploadOutlined />}
+                        className="w-full h-12 border-dashed border-white/30 bg-white/5 text-white hover:bg-white/10!"
+                      >
+                        Thay đổi Logo
+                      </Button>
+                    </Upload>
+                    {logoUrl !== "/logo1.jpg" && (
+                      <Button
+                        type="text"
+                        size="small"
+                        onClick={async () => {
+                          await assetDB.removeAudio(ASSET_KEYS.LOGO);
+                          setLogoUrl("/logo1.jpg");
+                          message.info("Đã khôi phục logo mặc định");
+                        }}
+                        className="text-white hover:text-white"
+                      >
+                        Khôi phục logo mặc định
+                      </Button>
+                    )}
                   </div>
                 </div>
 

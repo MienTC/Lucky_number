@@ -1,8 +1,9 @@
 const DB_NAME = 'lottery_db';
 const STORE_NAME = 'assets';
-export const AUDIO_KEYS = {
+export const ASSET_KEYS = {
   WIN: 'custom_win_sound',
-  SPIN: 'custom_spin_sound'
+  SPIN: 'custom_spin_sound',
+  LOGO: 'custom_logo'
 };
 
 export const assetDB = {
